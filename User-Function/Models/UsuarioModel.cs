@@ -6,6 +6,12 @@ using System.Threading.Tasks;
 
 namespace User_Function.Models
 {
+    public class UserCredentials
+    {
+        public string? User { get; set; }
+
+        public string? Password { get; set; }
+    }
     internal class UsuarioModel
     {
         public int Id { get; set; }

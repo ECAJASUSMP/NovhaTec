@@ -16,6 +16,58 @@ namespace User_Function /*Nombre del Namespace*/
 {
     public static class FunctionCRUD /*Declaración de la clase estática*/
     {
+        [FunctionName(nameof(AuthenticationUser))]
+        public static async Task<IActionResult> AuthenticationUser(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auth")] UserCredentials userCredentials, HttpRequest req, ILogger log)
+        {
+            //Autenticación simple de Ejemplo:
+            log.LogInformation("C# HTTP trigger function processed a request.");
+
+            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            var input = JsonConvert.DeserializeObject<UserCredentials>(requestBody);
+            using (SqlConnection connection = new SqlConnection(Environment.GetEnvironmentVariable("SqlConnectionString")))
+            {
+                connection.Open();
+
+                var query = $"SELECT COUNT (*) FROM [Usuario] WHERE Correo='{input.User}' AND Contraseña = '{input.Password}'";
+
+                SqlCommand command = new SqlCommand(query, connection);
+                
+
+                command.ExecuteNonQuery();
+                int count = (int)await command.ExecuteScalarAsync();
+                if (count == 0)
+                {
+                    return await Task.FromResult(new UnauthorizedResult()).ConfigureAwait(false);
+                }
+                else
+                {
+                    GenerateJWTToken generateJWTToken = new();
+                    string token = generateJWTToken.IssuingJWT(userCredentials.User);
+                    return await Task.FromResult(new OkObjectResult(token)).ConfigureAwait(false);
+                }
+            }
+            
+        } 
+
+        [FunctionName(nameof(GetToken))]
+        public static async Task<IActionResult> GetToken(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "token")] HttpRequest req,
+            ILogger log)
+        {
+            //Autenticación simple de Ejemplo:
+            ValidateJWT auth = new ValidateJWT(req);
+
+            if(!auth.IsValid)
+            {
+                return new UnauthorizedResult();
+            }
+            string postData = await req.ReadAsStringAsync();
+            return new OkObjectResult($"{postData}");
+            
+
+        }
+        
         [FunctionName("CreateUser")] /*Nombre de la Function*/
         public static async Task<IActionResult> CreateUser(
             /*Se declara la Function como método POST en la ruta USER*/ /*Por ejemplo: http://www.ejemplo.com/api/user/*/
